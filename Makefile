@@ -157,8 +157,11 @@ test: test-agent test-server test-server-datastore test-cli test-lib test-ui ## 
 build-ui: ## Build UI
 	(cd web/; pnpm install --frozen-lockfile; pnpm build)
 
-build-server: build-ui ## Build server
+build-server-without-ui:
 	CGO_ENABLED=${CGO_ENABLED} GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags '${LDFLAGS}' -o dist/woodpecker-server github.com/woodpecker-ci/woodpecker/cmd/server
+
+
+build-server: build-ui build-server-without-ui ## Build server
 
 build-agent: ## Build agent
 	CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags '${LDFLAGS}' -o dist/woodpecker-agent github.com/woodpecker-ci/woodpecker/cmd/agent

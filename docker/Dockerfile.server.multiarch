@@ -1,3 +1,34 @@
+FROM --platform=$BUILDPLATFORM node:18-alpine AS build-node
+
+WORKDIR /src
+COPY . .
+
+# RUN cd web && \
+#     corepack enable && \
+#     pnpm install --frozen-lockfile && \
+#     pnpm build
+
+RUN apk add make && corepack enable
+RUN make build-ui
+
+FROM --platform=$BUILDPLATFORM golang:1.18 AS build
+
+WORKDIR /src
+
+COPY --from=build-node /src/web/dist /src/web/dist
+
+COPY . .
+ARG TARGETOS TARGETARCH
+# RUN apt update && \
+#     apt-get install -y curl && \
+#     curl -fsSL https://deb.nodesource.com/setup_16.x | bash - && \
+#     apt-get install nodejs && \
+#     npm install -g pnpm
+
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/go/pkg \
+    make build-server-without-ui
+
 FROM --platform=$BUILDPLATFORM golang:1.18 AS certs
 
 FROM scratch
@@ -12,6 +43,6 @@ EXPOSE 8000 9000 80 443
 # copy certs from golang:1.18 image
 COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 # copy server binary
-COPY dist/server/${TARGETOS}/${TARGETARCH}/woodpecker-server /bin/
+COPY --from=build /src/dist/woodpecker-server /bin/
 
 ENTRYPOINT ["/bin/woodpecker-server"]
